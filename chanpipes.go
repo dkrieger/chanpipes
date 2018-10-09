@@ -4,21 +4,21 @@ import (
 	"runtime"
 )
 
-func Tee(left chan interface{}) (chan interface{}, chan interface{}, chan interface{}) {
+func Tee(out chan interface{}) (chan interface{}, chan interface{}) {
 	middle := make(chan interface{})
-	right := make(chan interface{})
-	go func(left chan<- interface{}, right <-chan interface{}, middle chan<- interface{}) {
-		upstream := <-right
-		left <- upstream
+	in := make(chan interface{})
+	go func(out chan<- interface{}, in <-chan interface{}, middle chan<- interface{}) {
+		upstream := <-in
+		out <- upstream
 		runtime.Gosched()
 		middle <- upstream
-	}(left, right, middle)
-	return right, middle, right
+	}(out, in, middle)
+	return in, middle
 }
 
 func New() (<-chan interface{}, chan interface{}) {
-	left := make(chan interface{})
-	return left, left
+	out := make(chan interface{})
+	return out, out
 }
 
 func FanIn(inputs ...<-chan interface{}) <-chan interface{} {

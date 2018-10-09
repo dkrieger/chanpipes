@@ -7,15 +7,14 @@ import (
 
 func TestTee(t *testing.T) {
 	tees := make(map[string](chan interface{}))
-	leftmost, left := New()
-	right := left
-	left, tees["foo"], _ = Tee(left)
-	left, tees["bar"], _ = Tee(left)
-	left, tees["baz"], right = Tee(left)
+	out, in := New()
+	in, tees["foo"] = Tee(in)
+	in, tees["bar"] = Tee(in)
+	in, tees["baz"] = Tee(in)
 	go func(input chan<- interface{}) {
 		input <- "testing"
-	}(right)
-	<-leftmost
+	}(in)
+	<-out
 	for range tees {
 		select {
 		case msg := <-tees["foo"]:
@@ -46,17 +45,17 @@ func TestFanIn(t *testing.T) {
 
 func TestTeeFanIn(t *testing.T) {
 	tees := []<-chan interface{}{}
-	leftmost, left := New()
-	left, tee, _ := Tee(left)
+	out, in := New()
+	in, tee := Tee(in)
 	tees = append(tees, tee)
-	left, tee, _ = Tee(left)
+	in, tee = Tee(in)
 	tees = append(tees, tee)
-	left, tee, right := Tee(left)
+	in, tee = Tee(in)
 	tees = append(tees, tee)
 	go func(input chan<- interface{}) {
 		input <- "testing"
-	}(right)
-	<-leftmost
+	}(in)
+	<-out
 	output := FanIn(tees...)
 	for range tees {
 		assert.Equal(t, "testing", <-output)
