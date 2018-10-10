@@ -4,7 +4,7 @@ import (
 	"runtime"
 )
 
-func Tee(out chan interface{}) (chan interface{}, chan interface{}) {
+func Eet(out chan interface{}) (chan interface{}, chan interface{}) {
 	middle := make(chan interface{})
 	in := make(chan interface{})
 	go func(out chan<- interface{}, in <-chan interface{}, middle chan<- interface{}) {

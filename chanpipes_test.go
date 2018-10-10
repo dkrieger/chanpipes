@@ -5,12 +5,12 @@ import (
 	"testing"
 )
 
-func TestTee(t *testing.T) {
+func TestEet(t *testing.T) {
 	tees := make(map[string](chan interface{}))
 	out, in := New()
-	in, tees["foo"] = Tee(in)
-	in, tees["bar"] = Tee(in)
-	in, tees["baz"] = Tee(in)
+	in, tees["foo"] = Eet(in)
+	in, tees["bar"] = Eet(in)
+	in, tees["baz"] = Eet(in)
 	go func(input chan<- interface{}) {
 		input <- "testing"
 	}(in)
@@ -43,14 +43,14 @@ func TestFanIn(t *testing.T) {
 	testInput(baz, all)
 }
 
-func TestTeeFanIn(t *testing.T) {
+func TestEetFanIn(t *testing.T) {
 	tees := []<-chan interface{}{}
 	out, in := New()
-	in, tee := Tee(in)
+	in, tee := Eet(in)
 	tees = append(tees, tee)
-	in, tee = Tee(in)
+	in, tee = Eet(in)
 	tees = append(tees, tee)
-	in, tee = Tee(in)
+	in, tee = Eet(in)
 	tees = append(tees, tee)
 	go func(input chan<- interface{}) {
 		input <- "testing"
