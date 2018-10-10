@@ -1,3 +1,5 @@
+// chanpipes provides helpers for building networks of channels, using POSIX
+// shell pipeline -like semantics where applicable.
 package chanpipes
 
 import (
@@ -12,8 +14,8 @@ func New() (<-chan interface{}, chan<- interface{}) {
 	return out, in
 }
 
-// Tee takes some readable channel as input, forwarding it to a new readable
-// channel ("out") immediately, yields to the scheduler, then forwarding it to
+// Tee takes some readable channel as input, forwards it to a new readable
+// channel ("out") immediately, yields to the scheduler, then forwards it to
 // another new readable channel ("middle") after the goroutine wakes up.
 func Tee(in <-chan interface{}) (<-chan interface{}, <-chan interface{}) {
 	middle := make(chan interface{})
