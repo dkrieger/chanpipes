@@ -5,6 +5,28 @@ import (
 	"testing"
 )
 
+func TestTee(t *testing.T) {
+	tees := make(map[string](<-chan interface{}))
+	out, in := New()
+	out, tees["foo"] = Tee(out)
+	out, tees["bar"] = Tee(out)
+	out, tees["baz"] = Tee(out)
+	go func(input chan<- interface{}) {
+		input <- "testing"
+	}(in)
+	<-out
+	for range tees {
+		select {
+		case msg := <-tees["foo"]:
+			assert.Equal(t, "testing", msg)
+		case msg := <-tees["bar"]:
+			assert.Equal(t, "testing", msg)
+		case msg := <-tees["baz"]:
+			assert.Equal(t, "testing", msg)
+		}
+	}
+}
+
 func TestEet(t *testing.T) {
 	tees := make(map[string](chan interface{}))
 	out, in := New()
