@@ -113,7 +113,7 @@ func TestGrep(t *testing.T) {
 	assert.Equal(t, "bar", doTestGrep(false))
 }
 
-func TestFanIn(t *testing.T) {
+func TestCat(t *testing.T) {
 	testInput := func(input chan<- interface{}, output <-chan interface{}) {
 		go func() {
 			input <- "testing"
@@ -123,7 +123,7 @@ func TestFanIn(t *testing.T) {
 	foo := make(chan interface{})
 	bar := make(chan interface{})
 	baz := make(chan interface{})
-	all := FanIn(foo, bar, baz)
+	all := Cat(foo, bar, baz)
 	testInput(foo, all)
 	testInput(bar, all)
 	testInput(baz, all)

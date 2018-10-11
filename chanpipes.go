@@ -50,8 +50,8 @@ func Pipe(in <-chan interface{}, mapper func(interface{}) interface{}) <-chan in
 	return out
 }
 
-// Grep is a filtering operation. Unlike the behavior of regular grep, which
-// filters each line of stdin independently, Grep filters all of "stdin".
+// Grep is a filtering operation. Unlike the behavior of "grep", which filters
+// each line of stdin independently, Grep filters all of "stdin".
 // It's more like
 //	# mkfifo foo bar pass fail && <foo cat >bar &
 //	# <input tee foo | grep condition >/dev/null 2>&1 && <bar cat >pass || <bar cat >fail &
@@ -72,8 +72,11 @@ func Grep(in <-chan interface{}, cond func(interface{}) bool) (<-chan interface{
 	return pass, fail
 }
 
-// FanIn is like a dynamic "select" statement for N readable channels
-func FanIn(inputs ...<-chan interface{}) <-chan interface{} {
+// Cat is like a dynamic "select" statement for N readable channels. It is a
+// fan-in pattern, which is like "cat" in a POSIX shell. A notable difference
+// between Cat and cat is that Cat doesn't care what order input chans are
+// passed, and will forward messages to the output chan in the order they arrive
+func Cat(inputs ...<-chan interface{}) <-chan interface{} {
 	out := make(chan interface{})
 	for _, input := range inputs {
 		go func(ch <-chan interface{}) {
