@@ -2,6 +2,7 @@ package chanpipes
 
 import (
 	"github.com/stretchr/testify/assert"
+	"runtime"
 	"testing"
 )
 
@@ -16,25 +17,105 @@ func TestNew(t *testing.T) {
 }
 
 func TestTee(t *testing.T) {
-	tees := make(map[string](<-chan interface{}))
+	defer func(gmp int) {
+		runtime.GOMAXPROCS(gmp)
+	}(runtime.GOMAXPROCS(-1))
+	runtime.GOMAXPROCS(1)
 	out, in := New()
-	out, tees["foo"] = Tee(out)
-	out, tees["bar"] = Tee(out)
-	out, tees["baz"] = Tee(out)
+	out, foo := Tee(out)
+	out, bar := Tee(out)
+	out, baz := Tee(out)
 	go func(input chan<- interface{}) {
 		input <- "testing"
 	}(in)
 	<-out
-	for range tees {
-		select {
-		case msg := <-tees["foo"]:
-			assert.Equal(t, "testing", msg)
-		case msg := <-tees["bar"]:
-			assert.Equal(t, "testing", msg)
-		case msg := <-tees["baz"]:
-			assert.Equal(t, "testing", msg)
+	assert.Equal(t, "testing", <-foo)
+	assert.Equal(t, "testing", <-bar)
+	assert.Equal(t, "testing", <-baz)
+}
+
+func TestPipe(t *testing.T) {
+	imap := func(x interface{}) interface{} {
+		return x.(int) * 2
+	}
+	igrep := func(x interface{}) bool {
+		switch x.(type) {
+		case int:
+			return true
+		default:
+			return false
 		}
 	}
+	smap := func(s interface{}) interface{} {
+		return s.(string) + " world"
+	}
+	sgrep := func(x interface{}) bool {
+		switch x.(type) {
+		case string:
+			return true
+		default:
+			return false
+		}
+	}
+	build := func() (<-chan interface{}, chan<- interface{}, <-chan interface{}, <-chan interface{}, <-chan bool, <-chan bool) {
+		out, in := New()
+		out, foo := Tee(out)
+		foo, ready1 := Grep(foo, igrep)
+		foo = Pipe(foo, imap)
+		out, bar := Tee(out)
+		bar, ready2 := Grep(bar, sgrep)
+		bar = Pipe(bar, smap)
+		return out, in, foo, bar, ready1, ready2
+	}
+	consume := func(foo <-chan interface{}, bar <-chan interface{}) {
+		select {
+		case msg := <-foo:
+			assert.Equal(t, 6, msg)
+		case msg := <-bar:
+			assert.Equal(t, "hello world", msg)
+		}
+	}
+	out, in, foo, bar, ready1, ready2 := build()
+	go func() {
+		in <- 3
+	}()
+	<-out
+	<-ready1
+	<-ready2
+	consume(foo, bar)
+	out, in, foo, bar, ready1, ready2 = build()
+	go func() {
+		in <- "hello"
+	}()
+	<-out
+	<-ready1
+	<-ready2
+	consume(foo, bar)
+}
+
+func doTestGrep(input bool) interface{} {
+	out, in := New()
+	res := make(chan interface{})
+	cond := func(msg interface{}) bool {
+		return msg.(bool)
+	}
+	out, ready := Grep(out, cond)
+	go func() {
+		<-ready
+		select {
+		case <-out:
+			res <- "foo"
+		default:
+			res <- "bar"
+		}
+	}()
+	in <- input
+	return <-res
+}
+
+func TestGrep(t *testing.T) {
+	assert.Equal(t, "foo", doTestGrep(true))
+	assert.Equal(t, "bar", doTestGrep(false))
 }
 
 func TestFanIn(t *testing.T) {
