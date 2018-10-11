@@ -128,3 +128,49 @@ func TestCat(t *testing.T) {
 	testInput(bar, all)
 	testInput(baz, all)
 }
+
+func TestExampleCleanup(t *testing.T) {
+	foo := make(chan bool)
+	quit := make(chan bool)
+	done := make(chan bool)
+	res := make(chan string, 5)
+	consume := func() {
+	Outer:
+		for {
+			select {
+			case <-quit:
+				res <- "QUIT"
+				break Outer
+			case _, ok := <-foo:
+				if !ok {
+					break Outer
+				} else {
+					res <- "FOO"
+				}
+			}
+			runtime.Gosched()
+		}
+		done <- true
+	}
+	go func() {
+		foo <- true
+		foo <- true
+		quit <- true
+	}()
+	go consume()
+	<-done
+	go func() {
+		foo <- true
+		foo <- true
+		close(foo)
+		close(res)
+	}()
+	go consume()
+	<-done
+	close(done)
+	assert.Equal(t, "FOO", <-res)
+	assert.Equal(t, "FOO", <-res)
+	assert.Equal(t, "QUIT", <-res)
+	assert.Equal(t, "FOO", <-res)
+	assert.Equal(t, "FOO", <-res)
+}
