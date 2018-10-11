@@ -80,9 +80,7 @@ func Cat(inputs ...<-chan interface{}) <-chan interface{} {
 	out := make(chan interface{})
 	for _, input := range inputs {
 		go func(ch <-chan interface{}) {
-			for {
-				out <- <-ch
-			}
+			out <- <-ch
 		}(input)
 	}
 	return out
