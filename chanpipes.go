@@ -1,5 +1,19 @@
 // chanpipes provides helpers for building networks of channels, using POSIX
 // shell pipeline -like semantics where applicable.
+//
+// Rob Pike makes repeated comparisons between POSIX shell semantics and Go
+// channel/goroutine semantics in his seminal "Go Concurrency Patterns" talk
+// (https://talks.golang.org/2012/concurrency.slide#1). Goroutines are like
+// background processes, and channels are like named pipes (fifos); chanpipes
+// takes its name from the latter analogy.
+//
+// Note that, much as shell pipelines use text as the universal interface,
+// chanpipes pipelines use `interface{}` for maximum interoperability, at the
+// expense of runtime safety. If/when golang gets generic types, some runtime
+// safety may be restored; in the meantime, our POSIX shell analogy is even
+// more literal, and the same approach of validating inputs at runtime should
+// be taken. If generic types don't come with golang 2, code generation may be
+// used to implement strongly-typed pipelines.
 package chanpipes
 
 // New creates a new channel and returns a read-only reference ("out") and a
@@ -39,25 +53,23 @@ func Pipe(in <-chan interface{}, mapper func(interface{}) interface{}) <-chan in
 // Grep is a filtering operation. Unlike the behavior of regular grep, which
 // filters each line of stdin independently, Grep filters all of "stdin".
 // It's more like
-//     # mkfifo foo bar && <foo cat >bar &
-//     # <input tee foo | grep condition >/dev/null 2>&1 && <bar cat >output
+//	# mkfifo foo bar pass fail && <foo cat >bar &
+//	# <input tee foo | grep condition >/dev/null 2>&1 && <bar cat >pass || <bar cat >fail &
 // than
-//     # <input grep condition >output
-//
-// For long-running processes, special care should be taken to ensure
-// goroutines that read the returned channel aren't left dangling in the case
-// of a failed condition, by using "select" or some other mechanism.
-func Grep(in <-chan interface{}, cond func(interface{}) bool) (<-chan interface{}, <-chan bool) {
-	out := make(chan interface{})
-	ready := make(chan bool)
-	go func(out chan<- interface{}, in <-chan interface{}) {
+//	# mkfifo output
+//	# <input grep condition >output &
+func Grep(in <-chan interface{}, cond func(interface{}) bool) (<-chan interface{}, <-chan interface{}) {
+	pass := make(chan interface{})
+	fail := make(chan interface{})
+	go func(pass chan<- interface{}, fail chan<- interface{}, in <-chan interface{}) {
 		upstream := <-in
-		ready <- true
 		if cond(upstream) {
-			out <- upstream
+			pass <- upstream
+		} else {
+			fail <- upstream
 		}
-	}(out, in)
-	return out, ready
+	}(pass, fail, in)
+	return pass, fail
 }
 
 // FanIn is like a dynamic "select" statement for N readable channels

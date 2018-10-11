@@ -57,15 +57,15 @@ func TestPipe(t *testing.T) {
 			return false
 		}
 	}
-	build := func() (<-chan interface{}, chan<- interface{}, <-chan interface{}, <-chan interface{}, <-chan bool, <-chan bool) {
+	build := func() (<-chan interface{}, chan<- interface{}, <-chan interface{}, <-chan interface{}) {
 		out, in := New()
 		out, foo := Tee(out)
-		foo, ready1 := Grep(foo, igrep)
+		foo, _ = Grep(foo, igrep)
 		foo = Pipe(foo, imap)
 		out, bar := Tee(out)
-		bar, ready2 := Grep(bar, sgrep)
+		bar, _ = Grep(bar, sgrep)
 		bar = Pipe(bar, smap)
-		return out, in, foo, bar, ready1, ready2
+		return out, in, foo, bar
 	}
 	consume := func(foo <-chan interface{}, bar <-chan interface{}) {
 		select {
@@ -75,21 +75,17 @@ func TestPipe(t *testing.T) {
 			assert.Equal(t, "hello world", msg)
 		}
 	}
-	out, in, foo, bar, ready1, ready2 := build()
+	out, in, foo, bar := build()
 	go func() {
 		in <- 3
 	}()
 	<-out
-	<-ready1
-	<-ready2
 	consume(foo, bar)
-	out, in, foo, bar, ready1, ready2 = build()
+	out, in, foo, bar = build()
 	go func() {
 		in <- "hello"
 	}()
 	<-out
-	<-ready1
-	<-ready2
 	consume(foo, bar)
 }
 
@@ -99,13 +95,12 @@ func doTestGrep(input bool) interface{} {
 	cond := func(msg interface{}) bool {
 		return msg.(bool)
 	}
-	out, ready := Grep(out, cond)
+	pass, fail := Grep(out, cond)
 	go func() {
-		<-ready
 		select {
-		case <-out:
+		case <-pass:
 			res <- "foo"
-		default:
+		case <-fail:
 			res <- "bar"
 		}
 	}()
